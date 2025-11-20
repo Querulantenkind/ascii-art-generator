@@ -79,10 +79,11 @@ A **professional-grade**, **feature-rich** ASCII art generator that transforms t
    - 4 border styles: single, double, thick, ascii
    - Perfect for framing text or creating UI elements
 
-### 🚀 Two Usage Modes
+### 🚀 Three Usage Modes
 
-- **Interactive Mode**: User-friendly menu-driven interface
-- **Command-Line Mode**: Direct command execution for scripting
+- **🎨 Interactive TUI Editor**: Professional real-time editor with live preview (NEW!)
+- **📋 Interactive Menu Mode**: User-friendly menu-driven interface
+- **⚡ Command-Line Mode**: Direct command execution for scripting
 
 ## 📦 Installation
 
@@ -128,7 +129,21 @@ pip install pytest black mypy
 
 ## 🚀 Quick Start
 
-### 30-Second Demo
+### 🎨 NEW: Interactive Editor (Recommended!)
+
+```bash
+# Launch the professional TUI editor
+python ascii_art_editor.py --demo
+
+# Press T to add text
+# Press P to apply preset
+# Press C to copy
+# Press Q to quit
+```
+
+**Create professional ASCII art in 30 seconds with live preview!**
+
+### 30-Second Command-Line Demo
 
 ```bash
 # Generate your first ASCII art
