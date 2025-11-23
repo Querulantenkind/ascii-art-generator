@@ -29,11 +29,11 @@ A **professional-grade**, **feature-rich** ASCII art generator that transforms t
 
 ### 🎯 Why Choose This Tool?
 
-- **🚀 70+ Features**: Text effects, patterns, animations, diagrams, and more
+- **🚀 75+ Features**: Text effects, patterns, animations, diagrams, plugins, and more
 - **⚡ High Performance**: Parallel batch processing, optimized algorithms
 - **🎨 Professional Quality**: Production-ready output for any use case
 - **📦 Zero Dependencies**: Core features work out of the box
-- **🔧 Extensible**: Template system, plugin architecture (coming soon)
+- **🔧 Extensible**: Template system, plugin architecture (NEW!)
 - **📚 Comprehensive Docs**: Detailed guides, examples, and API reference
 - **🌐 Multiple Formats**: Export to HTML, SVG, Markdown, PNG, and more
 
@@ -319,7 +319,7 @@ ascii-art-generator/
 The ASCII Art Generator is designed with the following principles:
 
 1. **Modularity**: Each art type has its own generator module
-2. **Extensibility**: Easy to add new fonts, patterns, and features
+2. **Extensibility**: Easy to add new fonts, patterns, and features via Plugin System
 3. **User-Friendly**: Both interactive and command-line modes
 4. **No Heavy Dependencies**: Core features work without external libraries
 5. **Terminal-First**: Optimized for terminal/console output
@@ -473,6 +473,7 @@ print(qr.generate_with_border("https://example.com", title="SCAN ME"))
 | **Best Practices** | Guidelines and tips | [docs/BEST_PRACTICES.md](docs/BEST_PRACTICES.md) |
 | **Features Guide** | Pro features documentation | [FEATURES.md](FEATURES.md) |
 | **Ultra Features** | Latest enhancements | [ULTRA_FEATURES.md](ULTRA_FEATURES.md) |
+| **Plugin Guide** | How to create and use plugins | [docs/PLUGIN_GUIDE.md](docs/PLUGIN_GUIDE.md) |
 | **Design Document** | Architecture details | [DESIGN.md](DESIGN.md) |
 | **Future Roadmap** | Upcoming features | [FUTURE_ROADMAP.md](FUTURE_ROADMAP.md) |
 | **Examples** | Code examples | [examples/](examples/) |
@@ -620,8 +621,8 @@ If you find this project useful, please consider giving it a star! ⭐
 ## 🔮 Future Roadmap
 
 ### Phase 3 (Next 3 Months)
-- [ ] Interactive real-time editor
-- [ ] Plugin system
+- [x] Interactive real-time editor
+- [x] Plugin system
 - [ ] Enhanced diagram generator
 - [ ] Sound visualization
 
