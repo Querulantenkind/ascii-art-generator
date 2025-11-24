@@ -48,7 +48,7 @@ A **professional-grade**, **feature-rich** ASCII art generator that transforms t
 | **Color Gradients** | ❌ | ✅ | ✅ | 4+ |
 | **Patterns** | ✅ | ✅ | ✅ | 15+ |
 | **Animations** | ❌ | ✅ | ✅ | 8+ |
-| **Diagrams** | ❌ | ❌ | ✅ | 4+ |
+| **Diagrams** | ❌ | ❌ | ✅ | 6+ |
 | **Templates** | ❌ | ❌ | ✅ | 12+ |
 | **Batch Processing** | ❌ | ❌ | ✅ | ✅ |
 | **Video Support** | ❌ | ❌ | ✅ | ✅ |
@@ -436,6 +436,7 @@ The tool now includes **cutting-edge capabilities**:
 - **🎬 Video to ASCII**: Convert videos to ASCII art animations
 - **📱 QR Code Generator**: Create scannable QR codes in ASCII
 - **🔄 Multi-format Export**: Export to HTML, SVG, Markdown, PNG simultaneously
+- **📊 Enhanced Diagrams**: Gantt charts and Entity Relationship Diagrams (NEW!)
 
 **Usage Examples**:
 ```python
@@ -455,6 +456,27 @@ processor.process_files("images/*.jpg", "output", converter.convert)
 from generators.qr_ascii import QRCodeASCII
 qr = QRCodeASCII()
 print(qr.generate_with_border("https://example.com", title="SCAN ME"))
+
+# Create Gantt chart (NEW!)
+from generators.diagrams import GanttChartGenerator
+gantt = GanttChartGenerator()
+gantt.add_task("Planning", start_day=0, duration=5, progress=100)
+gantt.add_task("Development", start_day=5, duration=10, progress=60)
+print(gantt.generate(width=80))
+
+# Create ERD diagram (NEW!)
+from generators.diagrams import ERDGenerator
+erd = ERDGenerator()
+erd.add_entity("Users", [
+    {'name': 'user_id', 'type': 'INT', 'key': 'PK'},
+    {'name': 'email', 'type': 'VARCHAR(100)'}
+])
+erd.add_entity("Orders", [
+    {'name': 'order_id', 'type': 'INT', 'key': 'PK'},
+    {'name': 'user_id', 'type': 'INT', 'key': 'FK'}
+])
+erd.add_relationship("Users", "Orders", "1:N", "places")
+print(erd.generate())
 ```
 
 **📚 See `ULTRA_FEATURES.md` for complete Ultra documentation!**

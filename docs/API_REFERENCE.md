@@ -661,6 +661,187 @@ diagram = uml.class_diagram({
 
 ---
 
+### GanttChartGenerator
+
+Generate Gantt charts for project management and timeline visualization.
+
+```python
+from generators.diagrams import GanttChartGenerator
+
+gantt = GanttChartGenerator()
+```
+
+#### Methods
+
+##### `add_task(name, start_day, duration, progress=0, dependencies=None)`
+
+Add a task to the Gantt chart.
+
+**Parameters:**
+- `name` (str): Task name
+- `start_day` (int): Start day (0-indexed)
+- `duration` (int): Duration in days
+- `progress` (int): Progress percentage (0-100)
+- `dependencies` (List[str], optional): List of task names this depends on
+
+**Example:**
+```python
+gantt.add_task("Requirements", start_day=0, duration=5, progress=100)
+gantt.add_task("Design", start_day=5, duration=7, progress=75)
+gantt.add_task("Development", start_day=12, duration=15, progress=40)
+```
+
+##### `generate(width=80, show_progress=True)`
+
+Generate the Gantt chart.
+
+**Parameters:**
+- `width` (int): Chart width in characters
+- `show_progress` (bool): Whether to show progress percentages
+
+**Returns:** str - ASCII Gantt chart
+
+**Example:**
+```python
+chart = gantt.generate(width=100, show_progress=True)
+print(chart)
+```
+
+**Output:**
+```
+====================================================================================================
+                                            Gantt Chart                                             
+====================================================================================================
+
+                       │ Prog. │ D0   D5   D10  D15  D20  
+───────────────────────┼───────┼────────────────────────────
+Requirements           │ 100% │ █████◆                     
+Design                 │  75% │      ███████                
+Development            │  40% │             ██████░░░░░░░  
+====================================================================================================
+
+Legend: █ Complete  ░ Remaining  ◆ Milestone
+```
+
+**Use Cases:**
+- Project planning and tracking
+- Sprint visualization
+- Task timeline documentation
+- Project status reports
+
+---
+
+### ERDGenerator
+
+Generate Entity Relationship Diagrams for database schema documentation.
+
+```python
+from generators.diagrams import ERDGenerator
+
+erd = ERDGenerator()
+```
+
+#### Methods
+
+##### `add_entity(name, attributes)`
+
+Add an entity (database table) to the diagram.
+
+**Parameters:**
+- `name` (str): Entity name
+- `attributes` (List[Dict]): List of attribute dictionaries with keys:
+  - `name` (str): Attribute name
+  - `type` (str): Data type
+  - `key` (str, optional): 'PK' for primary key, 'FK' for foreign key
+
+**Example:**
+```python
+erd.add_entity("Users", [
+    {'name': 'user_id', 'type': 'INT', 'key': 'PK'},
+    {'name': 'username', 'type': 'VARCHAR(50)'},
+    {'name': 'email', 'type': 'VARCHAR(100)'},
+    {'name': 'created_at', 'type': 'TIMESTAMP'}
+])
+
+erd.add_entity("Orders", [
+    {'name': 'order_id', 'type': 'INT', 'key': 'PK'},
+    {'name': 'user_id', 'type': 'INT', 'key': 'FK'},
+    {'name': 'total', 'type': 'DECIMAL(10,2)'}
+])
+```
+
+##### `add_relationship(from_entity, to_entity, relationship_type, label='')`
+
+Add a relationship between entities.
+
+**Parameters:**
+- `from_entity` (str): Source entity name
+- `to_entity` (str): Target entity name
+- `relationship_type` (str): Relationship type ('1:1', '1:N', 'N:M')
+- `label` (str, optional): Relationship description
+
+**Example:**
+```python
+erd.add_relationship("Users", "Orders", "1:N", "places")
+erd.add_relationship("Orders", "OrderItems", "1:N", "contains")
+erd.add_relationship("Products", "Categories", "N:1", "belongs to")
+```
+
+##### `generate()`
+
+Generate the ERD diagram.
+
+**Returns:** str - ASCII ERD diagram
+
+**Example:**
+```python
+diagram = erd.generate()
+print(diagram)
+```
+
+**Output:**
+```
+================================================================================
+                          Entity Relationship Diagram                           
+================================================================================
+
+┌──────────────────────────────────┐
+│              USERS               │
+├──────────────────────────────────┤
+│ [PK] user_id : INT               │
+│      username : VARCHAR(50)      │
+│      email : VARCHAR(100)        │
+│      created_at : TIMESTAMP      │
+└──────────────────────────────────┘
+
+  Users ──────> Orders  (places)  [1:N]
+
+┌────────────────────────────┐
+│          ORDERS            │
+├────────────────────────────┤
+│ [PK] order_id : INT        │
+│ [FK] user_id : INT         │
+│      total : DECIMAL(10,2) │
+└────────────────────────────┘
+
+================================================================================
+Legend:
+  PK = Primary Key
+  FK = Foreign Key
+  1:1 = One-to-One
+  1:N = One-to-Many
+  N:M = Many-to-Many
+```
+
+**Use Cases:**
+- Database schema documentation
+- API documentation (data models)
+- Technical specifications
+- System architecture diagrams
+- Teaching database design
+
+---
+
 ## Export
 
 ### HTMLExporter

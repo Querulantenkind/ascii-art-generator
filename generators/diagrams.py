@@ -454,3 +454,279 @@ class SequenceDiagram:
         
         return '\n'.join(result)
 
+
+class GanttChartGenerator:
+    """Generate Gantt charts for project management."""
+    
+    def __init__(self):
+        """Initialize Gantt chart generator."""
+        self.tasks = []
+    
+    def add_task(self, name: str, start_day: int, duration: int, 
+                 progress: int = 0, dependencies: Optional[List[str]] = None):
+        """Add a task to the Gantt chart.
+        
+        Args:
+            name: Task name
+            start_day: Start day (0-indexed)
+            duration: Duration in days
+            progress: Progress percentage (0-100)
+            dependencies: List of task names this depends on
+        """
+        self.tasks.append({
+            'name': name,
+            'start': start_day,
+            'duration': duration,
+            'progress': progress,
+            'dependencies': dependencies or []
+        })
+    
+    def generate(self, width: int = 80, show_progress: bool = True) -> str:
+        """Generate Gantt chart.
+        
+        Args:
+            width: Width of the chart
+            show_progress: Whether to show progress percentages
+            
+        Returns:
+            ASCII Gantt chart
+        """
+        if not self.tasks:
+            return "No tasks defined"
+        
+        # Calculate timeline
+        max_end = max(task['start'] + task['duration'] for task in self.tasks)
+        
+        # Calculate column widths
+        max_name_len = max(len(task['name']) for task in self.tasks)
+        name_col_width = min(max_name_len + 2, 25)
+        
+        # Progress column
+        progress_col_width = 8 if show_progress else 0
+        
+        # Timeline width
+        timeline_width = width - name_col_width - progress_col_width - 5
+        days_per_char = max(1, max_end / timeline_width)
+        
+        result = []
+        
+        # Header
+        result.append("=" * width)
+        result.append("Gantt Chart".center(width))
+        result.append("=" * width)
+        result.append("")
+        
+        # Timeline header
+        header_line = " " * name_col_width + "│"
+        if show_progress:
+            header_line += " Prog. │"
+        
+        # Day markers
+        timeline_header = ""
+        for day in range(0, max_end + 1, max(1, int(days_per_char * 5))):
+            pos = int(day / days_per_char)
+            if pos < timeline_width:
+                label = f"D{day}"
+                timeline_header += label + " " * (5 - len(label))
+        
+        header_line += " " + timeline_header[:timeline_width]
+        result.append(header_line)
+        
+        # Separator
+        sep = "─" * name_col_width + "┼"
+        if show_progress:
+            sep += "───────┼"
+        sep += "─" * timeline_width
+        result.append(sep)
+        
+        # Tasks
+        for task in self.tasks:
+            # Task name
+            task_name = task['name'][:name_col_width-1].ljust(name_col_width-1)
+            line = task_name + " │"
+            
+            # Progress
+            if show_progress:
+                progress_str = f"{task['progress']:3d}%"
+                line += f" {progress_str} │"
+            
+            # Timeline bar
+            start_pos = int(task['start'] / days_per_char)
+            bar_length = max(1, int(task['duration'] / days_per_char))
+            
+            timeline = " " * timeline_width
+            timeline_list = list(timeline)
+            
+            # Draw bar
+            progress_chars = int(bar_length * task['progress'] / 100)
+            for i in range(bar_length):
+                pos = start_pos + i
+                if 0 <= pos < timeline_width:
+                    if i < progress_chars:
+                        timeline_list[pos] = '█'
+                    else:
+                        timeline_list[pos] = '░'
+            
+            # Add milestone marker at end if 100% complete
+            if task['progress'] == 100 and start_pos + bar_length < timeline_width:
+                timeline_list[start_pos + bar_length] = '◆'
+            
+            line += " " + ''.join(timeline_list)
+            result.append(line)
+        
+        result.append("=" * width)
+        
+        # Legend
+        result.append("")
+        result.append("Legend: █ Complete  ░ Remaining  ◆ Milestone")
+        
+        return '\n'.join(result)
+
+
+class ERDGenerator:
+    """Generate Entity Relationship Diagrams for database schemas."""
+    
+    def __init__(self):
+        """Initialize ERD generator."""
+        self.entities = {}
+        self.relationships = []
+    
+    def add_entity(self, name: str, attributes: List[Dict[str, str]]):
+        """Add an entity (table) to the diagram.
+        
+        Args:
+            name: Entity name
+            attributes: List of attribute dicts with 'name', 'type', and optional 'key' (PK/FK)
+        """
+        self.entities[name] = attributes
+    
+    def add_relationship(self, from_entity: str, to_entity: str, 
+                        relationship_type: str, label: str = ""):
+        """Add a relationship between entities.
+        
+        Args:
+            from_entity: Source entity name
+            to_entity: Target entity name
+            relationship_type: Type ('1:1', '1:N', 'N:M')
+            label: Optional relationship label
+        """
+        self.relationships.append({
+            'from': from_entity,
+            'to': to_entity,
+            'type': relationship_type,
+            'label': label
+        })
+    
+    def generate(self) -> str:
+        """Generate ERD diagram.
+        
+        Returns:
+            ASCII ERD diagram
+        """
+        if not self.entities:
+            return "No entities defined"
+        
+        result = []
+        
+        # Title
+        result.append("=" * 80)
+        result.append("Entity Relationship Diagram".center(80))
+        result.append("=" * 80)
+        result.append("")
+        
+        # Draw each entity
+        for entity_name, attributes in self.entities.items():
+            entity_box = self._draw_entity(entity_name, attributes)
+            result.append(entity_box)
+            result.append("")
+            
+            # Show relationships for this entity
+            entity_rels = [r for r in self.relationships if r['from'] == entity_name]
+            for rel in entity_rels:
+                rel_line = self._draw_relationship(rel)
+                result.append(rel_line)
+                result.append("")
+        
+        # Legend
+        result.append("=" * 80)
+        result.append("Legend:")
+        result.append("  PK = Primary Key")
+        result.append("  FK = Foreign Key")
+        result.append("  1:1 = One-to-One")
+        result.append("  1:N = One-to-Many")
+        result.append("  N:M = Many-to-Many")
+        
+        return '\n'.join(result)
+    
+    def _draw_entity(self, name: str, attributes: List[Dict[str, str]]) -> str:
+        """Draw an entity box.
+        
+        Args:
+            name: Entity name
+            attributes: List of attributes
+            
+        Returns:
+            ASCII entity box
+        """
+        # Calculate width
+        max_attr_len = max(
+            len(f"{attr.get('key', ''):3s} {attr['name']} : {attr['type']}")
+            for attr in attributes
+        )
+        width = max(len(name) + 4, max_attr_len + 4, 30)
+        
+        lines = []
+        
+        # Top border
+        lines.append('┌' + '─' * (width - 2) + '┐')
+        
+        # Entity name (centered, bold)
+        lines.append('│ ' + name.upper().center(width - 4) + ' │')
+        
+        # Separator
+        lines.append('├' + '─' * (width - 2) + '┤')
+        
+        # Attributes
+        for attr in attributes:
+            key_marker = attr.get('key', '')
+            if key_marker:
+                key_marker = f"[{key_marker}]".ljust(5)
+            else:
+                key_marker = "     "
+            
+            attr_line = f"{key_marker}{attr['name']} : {attr['type']}"
+            lines.append('│ ' + attr_line.ljust(width - 4) + ' │')
+        
+        # Bottom border
+        lines.append('└' + '─' * (width - 2) + '┘')
+        
+        return '\n'.join(lines)
+    
+    def _draw_relationship(self, relationship: Dict) -> str:
+        """Draw a relationship line.
+        
+        Args:
+            relationship: Relationship dictionary
+            
+        Returns:
+            ASCII relationship representation
+        """
+        from_entity = relationship['from']
+        to_entity = relationship['to']
+        rel_type = relationship['type']
+        label = relationship['label']
+        
+        # Simple text representation
+        arrow = {
+            '1:1': '───────',
+            '1:N': '──────>',
+            'N:M': '<─────>'
+        }.get(rel_type, '───────')
+        
+        rel_str = f"  {from_entity} {arrow} {to_entity}"
+        if label:
+            rel_str += f"  ({label})"
+        rel_str += f"  [{rel_type}]"
+        
+        return rel_str
+
