@@ -6,6 +6,9 @@ from typing import List, Optional, Tuple, Dict
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+from utils.palette_manager import PaletteManager, ColorPalette
+from utils.palette_picker import GradientBuilder
+from generators.color_art import GradientGenerator
 
 
 @dataclass
@@ -19,6 +22,19 @@ class Layer:
     x: int = 0
     y: int = 0
     z_index: int = 0
+    palette_name: Optional[str] = None  # Name of applied palette
+
+
+@dataclass
+class Selection:
+    """Represents a selection area."""
+    
+    x: int
+    y: int
+    width: int
+    height: int
+    layer_id: int
+    content: str = ""  # Selected content snapshot
 
 
 @dataclass
@@ -27,6 +43,7 @@ class EditorState:
     
     layers: List[Layer]
     current_layer_id: int
+    selection: Optional[Selection] = None
     timestamp: datetime = field(default_factory=datetime.now)
 
 
@@ -110,6 +127,11 @@ class InteractiveTUIEditor:
         self.current_font = 'standard'
         self.current_effect = None
         self.current_preset = None
+        self.current_palette = None
+        
+        # Palette management
+        self.palette_manager = PaletteManager()
+        self.gradient_generator = GradientGenerator()
         
         # UI windows
         self.preview_win = None
@@ -121,6 +143,12 @@ class InteractiveTUIEditor:
         # Input buffer
         self.input_buffer = ""
         self.input_mode = False
+        
+        # Selection state
+        self.selection: Optional[Selection] = None
+        self.selection_mode = False
+        self.selection_start: Optional[Tuple[int, int]] = None
+        self.clipboard: Optional[str] = None
     
     def run(self):
         """Launch the interactive editor."""
@@ -196,6 +224,9 @@ class InteractiveTUIEditor:
                 elif key == ord('x') or key == ord('X'):
                     self._export_menu()
                 
+                elif key == ord('g') or key == ord('G'):
+                    self._palette_menu()
+                
                 elif key == ord('l') or key == ord('L'):
                     self._toggle_layers_panel()
                 
@@ -208,20 +239,54 @@ class InteractiveTUIEditor:
                 elif key == 25:  # Ctrl+Y
                     self._redo()
                 
+                elif key == 19:  # Ctrl+S
+                    self._start_selection()
+                
+                elif key == ord(' ') and self.selection:
+                    self._clear_selection()
+                
+                elif key == curses.KEY_DC or key == 127:  # Delete/Backspace
+                    if self.selection:
+                        self._delete_selection()
+                
+                elif key == 3:  # Ctrl+C
+                    if self.selection:
+                        self._copy_selection()
+                
+                elif key == 22:  # Ctrl+V
+                    if self.clipboard:
+                        self._paste_clipboard()
+                
+                elif key == ord('r') or key == ord('R'):
+                    if self.selection:
+                        self._rotate_selection()
+                
                 elif key == curses.KEY_UP:
-                    self._move_layer(0, -1)
+                    if self.selection:
+                        self._move_selection(0, -1)
+                    else:
+                        self._move_layer(0, -1)
                 
                 elif key == curses.KEY_DOWN:
-                    self._move_layer(0, 1)
+                    if self.selection:
+                        self._move_selection(0, 1)
+                    else:
+                        self._move_layer(0, 1)
                 
                 elif key == curses.KEY_LEFT:
-                    self._move_layer(-1, 0)
+                    if self.selection:
+                        self._move_selection(-1, 0)
+                    else:
+                        self._move_layer(-1, 0)
                 
                 elif key == curses.KEY_RIGHT:
-                    self._move_layer(1, 0)
+                    if self.selection:
+                        self._move_selection(1, 0)
+                    else:
+                        self._move_layer(1, 0)
                 
                 elif key == curses.KEY_MOUSE:
-                    self._handle_mouse()
+                    self._handle_mouse(stdscr)
                 
                 elif key == curses.KEY_RESIZE:
                     self._handle_resize()
@@ -280,7 +345,7 @@ class InteractiveTUIEditor:
         self.toolbar_win.clear()
         self.toolbar_win.box()
         
-        toolbar_text = " [N]ew [T]ext [E]ffect [F]ont [P]reset [S]ave [O]pen [C]opy e[X]port [H]elp [Q]uit "
+        toolbar_text = " [N]ew [T]ext [E]ffect [F]ont [P]reset [G]radient [S]ave [O]pen [C]opy e[X]port [H]elp [Q]uit "
         
         try:
             self.toolbar_win.addstr(0, 2, toolbar_text[:self.toolbar_win.getmaxyx()[1] - 4])
@@ -322,12 +387,45 @@ class InteractiveTUIEditor:
                 if 1 <= y < height - 1 and x < width - 1:
                     try:
                         # Highlight current layer
-                        if layer.id == self.current_layer_id:
-                            self.preview_win.addstr(y, x, line[:width - x - 1], curses.A_REVERSE)
-                        else:
-                            self.preview_win.addstr(y, x, line[:width - x - 1])
+                        attr = curses.A_REVERSE if layer.id == self.current_layer_id else curses.A_NORMAL
+                        self.preview_win.addstr(y, x, line[:width - x - 1], attr)
                     except curses.error:
                         pass
+        
+        # Draw selection rectangle if active
+        if self.selection:
+            sel_x = self.selection.x + 1  # +1 for border
+            sel_y = self.selection.y + 1  # +1 for border
+            sel_w = self.selection.width
+            sel_h = self.selection.height
+            
+            # Draw selection border
+            try:
+                # Top and bottom
+                for x in range(max(1, sel_x), min(width - 1, sel_x + sel_w)):
+                    if 1 <= sel_y < height - 1:
+                        self.preview_win.addstr(sel_y, x, '─', curses.A_REVERSE)
+                    if 1 <= sel_y + sel_h - 1 < height - 1:
+                        self.preview_win.addstr(sel_y + sel_h - 1, x, '─', curses.A_REVERSE)
+                
+                # Left and right
+                for y in range(max(1, sel_y), min(height - 1, sel_y + sel_h)):
+                    if 1 <= sel_x < width - 1:
+                        self.preview_win.addstr(y, sel_x, '│', curses.A_REVERSE)
+                    if 1 <= sel_x + sel_w - 1 < width - 1:
+                        self.preview_win.addstr(y, sel_x + sel_w - 1, '│', curses.A_REVERSE)
+                
+                # Corners
+                if 1 <= sel_y < height - 1 and 1 <= sel_x < width - 1:
+                    self.preview_win.addstr(sel_y, sel_x, '┌', curses.A_REVERSE)
+                if 1 <= sel_y < height - 1 and 1 <= sel_x + sel_w - 1 < width - 1:
+                    self.preview_win.addstr(sel_y, sel_x + sel_w - 1, '┐', curses.A_REVERSE)
+                if 1 <= sel_y + sel_h - 1 < height - 1 and 1 <= sel_x < width - 1:
+                    self.preview_win.addstr(sel_y + sel_h - 1, sel_x, '└', curses.A_REVERSE)
+                if 1 <= sel_y + sel_h - 1 < height - 1 and 1 <= sel_x + sel_w - 1 < width - 1:
+                    self.preview_win.addstr(sel_y + sel_h - 1, sel_x + sel_w - 1, '┘', curses.A_REVERSE)
+            except curses.error:
+                pass
         
         self.preview_win.noutrefresh()
     
@@ -392,17 +490,22 @@ class InteractiveTUIEditor:
         if self.current_preset:
             status_text += f" | Preset: {self.current_preset}"
         
+        if self.current_palette:
+            status_text += f" | Palette: {self.current_palette}"
+        
         try:
             self.status_win.addstr(1, 2, status_text[:self.status_win.getmaxyx()[1] - 4])
         except curses.error:
             pass
         
-        # Undo/Redo status
+        # Undo/Redo status and selection
         undo_status = "Undo: " + ("✓" if self.history.can_undo() else "✗")
         redo_status = "Redo: " + ("✓" if self.history.can_redo() else "✗")
+        selection_status = "Selection: " + ("✓" if self.selection else "✗")
         
         try:
-            self.status_win.addstr(2, 2, f"{undo_status} | {redo_status}")
+            status_line = f"{undo_status} | {redo_status} | {selection_status}"
+            self.status_win.addstr(2, 2, status_line[:self.status_win.getmaxyx()[1] - 4])
         except curses.error:
             pass
         
@@ -435,10 +538,20 @@ class InteractiveTUIEditor:
             "    L           - Toggle layers panel",
             "    Arrow Keys  - Move current layer",
             "",
+            "  SELECTION:",
+            "    Ctrl+S      - Start selection",
+            "    Space       - Clear selection",
+            "    Arrow Keys  - Move selection (when active)",
+            "    R           - Rotate selection 90°",
+            "    Del/Backsp  - Delete selection",
+            "    Ctrl+C      - Copy selection",
+            "    Ctrl+V      - Paste from clipboard",
+            "",
             "  STYLING:",
             "    F           - Change font",
             "    E           - Apply effect",
             "    P           - Apply preset style",
+            "    G           - Palette/gradient menu",
             "",
             "  FILE OPERATIONS:",
             "    S           - Save project",
@@ -618,14 +731,16 @@ class InteractiveTUIEditor:
                         'visible': layer.visible,
                         'x': layer.x,
                         'y': layer.y,
-                        'z_index': layer.z_index
+                        'z_index': layer.z_index,
+                        'palette_name': layer.palette_name
                     }
                     for layer in self.layers
                 ],
                 'settings': {
                     'font': self.current_font,
                     'effect': self.current_effect,
-                    'preset': self.current_preset
+                    'preset': self.current_preset,
+                    'palette': self.current_palette
                 },
                 'metadata': {
                     'created': datetime.now().isoformat(),
@@ -663,6 +778,7 @@ class InteractiveTUIEditor:
             self.current_font = settings.get('font', 'standard')
             self.current_effect = settings.get('effect')
             self.current_preset = settings.get('preset')
+            self.current_palette = settings.get('palette')
             
             if self.layers:
                 self.current_layer_id = self.layers[0].id
@@ -833,9 +949,22 @@ class InteractiveTUIEditor:
     
     def _save_history(self):
         """Save current state to history."""
+        # Create deep copy of selection if exists
+        selection_copy = None
+        if self.selection:
+            selection_copy = Selection(
+                x=self.selection.x,
+                y=self.selection.y,
+                width=self.selection.width,
+                height=self.selection.height,
+                layer_id=self.selection.layer_id,
+                content=self.selection.content
+            )
+        
         state = EditorState(
             layers=[Layer(**vars(l)) for l in self.layers],
-            current_layer_id=self.current_layer_id
+            current_layer_id=self.current_layer_id,
+            selection=selection_copy
         )
         self.history.save_state(state)
     
@@ -847,6 +976,19 @@ class InteractiveTUIEditor:
         """
         self.layers = [Layer(**vars(l)) for l in state.layers]
         self.current_layer_id = state.current_layer_id
+        
+        # Restore selection
+        if state.selection:
+            self.selection = Selection(
+                x=state.selection.x,
+                y=state.selection.y,
+                width=state.selection.width,
+                height=state.selection.height,
+                layer_id=state.selection.layer_id,
+                content=state.selection.content
+            )
+        else:
+            self.selection = None
     
     def _handle_mouse(self):
         """Handle mouse events."""
@@ -987,6 +1129,323 @@ class InteractiveTUIEditor:
                 self.status_win.refresh()
             except curses.error:
                 pass
+    
+    def _palette_menu(self):
+        """Show palette selection and management menu."""
+        menu_options = [
+            'Apply palette to layer',
+            'Create new palette',
+            'Manage palettes',
+            'Cancel'
+        ]
+        
+        selected = self._show_menu("Palette Menu", menu_options)
+        
+        if selected == 'Apply palette to layer':
+            self._apply_palette_to_layer()
+        elif selected == 'Create new palette':
+            self._create_new_palette()
+        elif selected == 'Manage palettes':
+            self._manage_palettes()
+    
+    def _apply_palette_to_layer(self):
+        """Apply palette to current layer."""
+        current_layer = self._get_current_layer()
+        
+        if not current_layer:
+            self._show_error("No layer selected")
+            return
+        
+        # Get available palettes
+        builtin_palettes = self.palette_manager.get_builtin_palettes()
+        custom_palettes = self.palette_manager.list_palettes()
+        
+        # Combine built-in and custom palettes
+        palette_names = list(builtin_palettes.keys()) + custom_palettes
+        
+        if not palette_names:
+            self._show_error("No palettes available")
+            return
+        
+        selected_name = self._show_menu("Select Palette", palette_names)
+        
+        if selected_name:
+            # Get palette
+            if selected_name in builtin_palettes:
+                palette = builtin_palettes[selected_name]
+            else:
+                palette = self.palette_manager.get_palette(selected_name)
+            
+            if palette:
+                # Apply gradient to layer content
+                try:
+                    colored_content = self.gradient_generator.apply_gradient_to_text(
+                        current_layer.content,
+                        palette
+                    )
+                    current_layer.content = colored_content
+                    current_layer.palette_name = palette.name
+                    self.current_palette = palette.name
+                    self._save_history()
+                    self._show_message(f"Applied palette: {palette.name}")
+                except Exception as e:
+                    self._show_error(f"Error applying palette: {e}")
+    
+    def _create_new_palette(self):
+        """Create a new custom palette."""
+        try:
+            # Use gradient builder
+            builder = GradientBuilder()
+            colors = builder.build_gradient_simple()
+            
+            if not colors or len(colors) < 2:
+                self._show_message("Palette creation cancelled")
+                return
+            
+            # Get palette name
+            name = self._get_text_input("Palette name: ")
+            
+            if not name:
+                self._show_message("Palette creation cancelled")
+                return
+            
+            # Get gradient type
+            gradient_types = ['linear', 'smooth']
+            gradient_type = self._show_menu("Gradient Type", gradient_types)
+            
+            if not gradient_type:
+                gradient_type = 'linear'
+            
+            # Create and save palette
+            palette = self.palette_manager.create_palette(
+                name=name,
+                colors=colors,
+                gradient_type=gradient_type,
+                metadata={'author': 'User', 'description': 'Custom palette'}
+            )
+            
+            self.palette_manager.save_palette(palette)
+            self._show_message(f"Palette '{name}' created and saved!")
+        
+        except Exception as e:
+            self._show_error(f"Error creating palette: {e}")
+    
+    def _manage_palettes(self):
+        """Manage existing palettes."""
+        custom_palettes = self.palette_manager.list_palettes()
+        
+        if not custom_palettes:
+            self._show_message("No custom palettes found")
+            return
+        
+        # Add management options
+        options = custom_palettes + ['Delete palette', 'Cancel']
+        
+        selected = self._show_menu("Manage Palettes", options)
+        
+        if selected == 'Delete palette':
+            # Show palette list for deletion
+            palette_to_delete = self._show_menu("Select Palette to Delete", custom_palettes)
+            
+            if palette_to_delete:
+                if self.palette_manager.delete_palette(palette_to_delete):
+                    self._show_message(f"Palette '{palette_to_delete}' deleted")
+                else:
+                    self._show_error(f"Failed to delete palette '{palette_to_delete}'")
+    
+    def _start_selection(self):
+        """Start selection mode."""
+        current_layer = self._get_current_layer()
+        
+        if not current_layer:
+            self._show_error("No layer selected")
+            return
+        
+        # Select entire layer content
+        lines = current_layer.content.split('\n')
+        max_width = max(len(line) for line in lines) if lines else 0
+        
+        self.selection = Selection(
+            x=current_layer.x,
+            y=current_layer.y,
+            width=max_width,
+            height=len(lines),
+            layer_id=current_layer.id,
+            content=current_layer.content
+        )
+        
+        self.selection_mode = True
+        self._show_message("Selection created - Use Arrows to move, R to rotate, Del to delete")
+    
+    def _clear_selection(self):
+        """Clear current selection."""
+        self.selection = None
+        self.selection_mode = False
+        self._show_message("Selection cleared")
+    
+    def _move_selection(self, dx: int, dy: int):
+        """Move selection area.
+        
+        Args:
+            dx: X offset
+            dy: Y offset
+        """
+        if not self.selection:
+            return
+        
+        self.selection.x += dx
+        self.selection.y += dy
+        
+        # Also move the layer if selection is on current layer
+        current_layer = self._get_current_layer()
+        if current_layer and current_layer.id == self.selection.layer_id:
+            current_layer.x += dx
+            current_layer.y += dy
+        
+        self._save_history()
+    
+    def _delete_selection(self):
+        """Delete selected content."""
+        if not self.selection:
+            return
+        
+        current_layer = self._get_current_layer()
+        
+        if current_layer and current_layer.id == self.selection.layer_id:
+            # Clear layer content
+            current_layer.content = ""
+            self._clear_selection()
+            self._save_history()
+            self._show_message("Selection deleted")
+    
+    def _copy_selection(self):
+        """Copy selection to clipboard."""
+        if not self.selection:
+            return
+        
+        self.clipboard = self.selection.content
+        self._show_message("Selection copied to clipboard")
+    
+    def _paste_clipboard(self):
+        """Paste clipboard content as new layer."""
+        if not self.clipboard:
+            self._show_error("Clipboard is empty")
+            return
+        
+        current_layer = self._get_current_layer()
+        paste_x = current_layer.x if current_layer else 0
+        paste_y = current_layer.y if current_layer else 0
+        
+        # Create new layer with clipboard content
+        layer = Layer(
+            id=self.next_layer_id,
+            name=f"Pasted {self.next_layer_id}",
+            content=self.clipboard,
+            x=paste_x,
+            y=paste_y,
+            z_index=len(self.layers)
+        )
+        
+        self.layers.append(layer)
+        self.current_layer_id = layer.id
+        self.next_layer_id += 1
+        
+        self._save_history()
+        self._show_message("Pasted from clipboard")
+    
+    def _rotate_selection(self):
+        """Rotate selection 90 degrees clockwise."""
+        if not self.selection:
+            return
+        
+        current_layer = self._get_current_layer()
+        
+        if current_layer and current_layer.id == self.selection.layer_id:
+            # Rotate ASCII art content
+            lines = current_layer.content.split('\n')
+            
+            if not lines:
+                return
+            
+            # Transpose and reverse for 90° clockwise rotation
+            max_width = max(len(line) for line in lines)
+            rotated_lines = []
+            
+            for x in range(max_width):
+                new_line = ""
+                for y in range(len(lines) - 1, -1, -1):
+                    if x < len(lines[y]):
+                        new_line += lines[y][x]
+                    else:
+                        new_line += " "
+                rotated_lines.append(new_line.rstrip())
+            
+            current_layer.content = '\n'.join(rotated_lines)
+            
+            # Update selection dimensions
+            self.selection.width, self.selection.height = self.selection.height, self.selection.width
+            self.selection.content = current_layer.content
+            
+            self._save_history()
+            self._show_message("Selection rotated 90°")
+    
+    def _handle_mouse(self, stdscr):
+        """Handle mouse events.
+        
+        Args:
+            stdscr: Curses standard screen
+        """
+        try:
+            _, x, y, _, button = curses.getmouse()
+            
+            # Check if click is in preview window
+            if self.preview_win:
+                py, px = self.preview_win.getbegyx()
+                ph, pw = self.preview_win.getmaxyx()
+                
+                if py <= y < py + ph and px <= x < px + pw:
+                    # Convert screen coordinates to preview coordinates
+                    rel_y = y - py - 1  # -1 for border
+                    rel_x = x - px - 1  # -1 for border
+                    
+                    if self.selection_mode:
+                        # Update selection
+                        if self.selection_start is None:
+                            self.selection_start = (rel_x, rel_y)
+                        else:
+                            # Create selection rectangle
+                            start_x, start_y = self.selection_start
+                            sel_x = min(start_x, rel_x)
+                            sel_y = min(start_y, rel_y)
+                            sel_width = abs(rel_x - start_x)
+                            sel_height = abs(rel_y - start_y)
+                            
+                            current_layer = self._get_current_layer()
+                            if current_layer:
+                                self.selection = Selection(
+                                    x=sel_x,
+                                    y=sel_y,
+                                    width=sel_width,
+                                    height=sel_height,
+                                    layer_id=current_layer.id,
+                                    content=""  # Will be extracted if needed
+                                )
+                    else:
+                        # Select layer at click position
+                        # Find layer containing this position
+                        for layer in reversed(sorted(self.layers, key=lambda l: l.z_index)):
+                            if layer.visible:
+                                lines = layer.content.split('\n')
+                                layer_height = len(lines)
+                                layer_width = max(len(line) for line in lines) if lines else 0
+                                
+                                if (layer.x <= rel_x < layer.x + layer_width and
+                                    layer.y <= rel_y < layer.y + layer_height):
+                                    self.current_layer_id = layer.id
+                                    break
+        
+        except curses.error:
+            pass
     
     def _confirm_quit(self) -> bool:
         """Confirm quit action.

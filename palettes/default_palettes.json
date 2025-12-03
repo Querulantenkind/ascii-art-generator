@@ -1,0 +1,85 @@
+{
+  "palettes": [
+    {
+      "name": "Rainbow",
+      "colors": [[255, 0, 0], [255, 127, 0], [255, 255, 0], [0, 255, 0], [0, 0, 255], [75, 0, 130], [148, 0, 211]],
+      "gradient_type": "linear",
+      "metadata": {
+        "author": "System",
+        "description": "Classic rainbow gradient",
+        "tags": ["bright", "colorful"]
+      }
+    },
+    {
+      "name": "Fire",
+      "colors": [[255, 0, 0], [255, 100, 0], [255, 200, 0], [255, 255, 0]],
+      "gradient_type": "linear",
+      "metadata": {
+        "author": "System",
+        "description": "Fire gradient (red to yellow)",
+        "tags": ["warm", "hot"]
+      }
+    },
+    {
+      "name": "Ocean",
+      "colors": [[0, 50, 150], [0, 100, 200], [0, 150, 255], [0, 200, 255], [100, 220, 255]],
+      "gradient_type": "smooth",
+      "metadata": {
+        "author": "System",
+        "description": "Ocean gradient (deep blue to cyan)",
+        "tags": ["cool", "water"]
+      }
+    },
+    {
+      "name": "Forest",
+      "colors": [[0, 50, 0], [0, 100, 0], [34, 139, 34], [124, 252, 0], [144, 238, 144]],
+      "gradient_type": "smooth",
+      "metadata": {
+        "author": "System",
+        "description": "Forest gradient (dark to light green)",
+        "tags": ["nature", "green"]
+      }
+    },
+    {
+      "name": "Sunset",
+      "colors": [[255, 94, 77], [255, 154, 0], [255, 206, 84], [255, 236, 153]],
+      "gradient_type": "smooth",
+      "metadata": {
+        "author": "System",
+        "description": "Sunset gradient",
+        "tags": ["warm", "orange"]
+      }
+    },
+    {
+      "name": "Aurora",
+      "colors": [[0, 255, 127], [0, 255, 255], [0, 191, 255], [138, 43, 226]],
+      "gradient_type": "smooth",
+      "metadata": {
+        "author": "System",
+        "description": "Aurora borealis gradient",
+        "tags": ["cool", "magical"]
+      }
+    },
+    {
+      "name": "Monochrome",
+      "colors": [[0, 0, 0], [64, 64, 64], [128, 128, 128], [192, 192, 192], [255, 255, 255]],
+      "gradient_type": "linear",
+      "metadata": {
+        "author": "System",
+        "description": "Grayscale gradient",
+        "tags": ["grayscale", "minimal"]
+      }
+    },
+    {
+      "name": "Neon",
+      "colors": [[255, 0, 255], [0, 255, 255], [255, 255, 0], [0, 255, 0]],
+      "gradient_type": "linear",
+      "metadata": {
+        "author": "System",
+        "description": "Neon colors gradient",
+        "tags": ["bright", "electric"]
+      }
+    }
+  ]
+}
+

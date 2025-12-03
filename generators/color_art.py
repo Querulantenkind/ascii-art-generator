@@ -1,7 +1,10 @@
 """Color support for ASCII art with gradients and ANSI colors."""
 
-from typing import Tuple, List, Optional
+from typing import Tuple, List, Optional, Union, TYPE_CHECKING
 import math
+
+if TYPE_CHECKING:
+    from utils.palette_manager import ColorPalette
 
 
 class ColorMapper:
@@ -177,12 +180,12 @@ class GradientGenerator:
         
         return (int(r * 255), int(g * 255), int(b * 255))
     
-    def apply_gradient_to_text(self, text: str, gradient_type: str = 'rainbow') -> str:
+    def apply_gradient_to_text(self, text: str, gradient_type: Union[str, 'ColorPalette', object] = 'rainbow') -> str:
         """Apply color gradient to text.
         
         Args:
             text: Text to colorize
-            gradient_type: Type of gradient ('rainbow', 'fire', 'ocean', 'forest')
+            gradient_type: Type of gradient ('rainbow', 'fire', 'ocean', 'forest') or ColorPalette instance
             
         Returns:
             Colorized text with ANSI codes
@@ -193,7 +196,11 @@ class GradientGenerator:
         # Calculate total characters for gradient
         total_chars = sum(len(line) for line in lines)
         
-        if gradient_type == 'rainbow':
+        # Check if gradient_type is a ColorPalette object
+        if hasattr(gradient_type, 'get_gradient') and callable(getattr(gradient_type, 'get_gradient', None)):
+            # It's a ColorPalette instance
+            gradient = gradient_type.get_gradient(total_chars)
+        elif gradient_type == 'rainbow':
             gradient = self.rainbow_gradient(total_chars)
         elif gradient_type == 'fire':
             gradient = self.linear_gradient((255, 0, 0), (255, 255, 0), total_chars)
