@@ -377,4 +377,351 @@ class TextEffects:
         result.append(top_bottom)
         
         return '\n'.join(result)
+    
+    def rotate_text(self, text: str, angle: int = 90) -> str:
+        """Rotate ASCII art text by specified angle.
+        
+        Args:
+            text: Input ASCII art
+            angle: Rotation angle in degrees (90, 180, 270, or custom)
+            
+        Returns:
+            Rotated ASCII art
+        """
+        lines = text.split('\n')
+        
+        if not lines:
+            return text
+        
+        # Normalize angle to 0-360
+        angle = angle % 360
+        
+        if angle == 0:
+            return text
+        elif angle == 90:
+            return self._rotate_90_clockwise(lines)
+        elif angle == 180:
+            return self._rotate_180(lines)
+        elif angle == 270:
+            return self._rotate_90_counterclockwise(lines)
+        else:
+            # Custom angle rotation
+            return self._rotate_custom(lines, angle)
+    
+    def _rotate_90_clockwise(self, lines: List[str]) -> str:
+        """Rotate 90 degrees clockwise."""
+        if not lines:
+            return ""
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        
+        # Pad all lines to same width
+        padded_lines = [line.ljust(max_width) for line in lines]
+        
+        # Transpose and reverse
+        rotated = []
+        for x in range(max_width):
+            new_line = ""
+            for y in range(height - 1, -1, -1):
+                new_line += padded_lines[y][x]
+            rotated.append(new_line)
+        
+        return '\n'.join(rotated)
+    
+    def _rotate_180(self, lines: List[str]) -> str:
+        """Rotate 180 degrees."""
+        if not lines:
+            return ""
+        
+        max_width = max(len(line) for line in lines)
+        padded_lines = [line.ljust(max_width) for line in lines]
+        
+        # Reverse order and reverse each line
+        rotated = []
+        for line in reversed(padded_lines):
+            rotated.append(line[::-1])
+        
+        return '\n'.join(rotated)
+    
+    def _rotate_90_counterclockwise(self, lines: List[str]) -> str:
+        """Rotate 90 degrees counterclockwise."""
+        if not lines:
+            return ""
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        
+        padded_lines = [line.ljust(max_width) for line in lines]
+        
+        # Transpose and reverse rows
+        rotated = []
+        for x in range(max_width - 1, -1, -1):
+            new_line = ""
+            for y in range(height):
+                new_line += padded_lines[y][x]
+            rotated.append(new_line)
+        
+        return '\n'.join(rotated)
+    
+    def _rotate_custom(self, lines: List[str], angle: float) -> str:
+        """Rotate by custom angle using rotation matrix."""
+        import math
+        
+        if not lines:
+            return ""
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        
+        # Convert to radians
+        rad = math.radians(angle)
+        cos_a = math.cos(rad)
+        sin_a = math.sin(rad)
+        
+        # Calculate new dimensions
+        center_x = max_width / 2
+        center_y = height / 2
+        
+        # Calculate bounding box
+        corners = [
+            (-center_x, -center_y),
+            (max_width - center_x, -center_y),
+            (-center_x, height - center_y),
+            (max_width - center_x, height - center_y)
+        ]
+        
+        rotated_corners = []
+        for x, y in corners:
+            rx = x * cos_a - y * sin_a
+            ry = x * sin_a + y * cos_a
+            rotated_corners.append((rx, ry))
+        
+        min_x = min(c[0] for c in rotated_corners)
+        max_x = max(c[0] for c in rotated_corners)
+        min_y = min(c[1] for c in rotated_corners)
+        max_y = max(c[1] for c in rotated_corners)
+        
+        new_width = int(max_x - min_x) + 1
+        new_height = int(max_y - min_y) + 1
+        
+        # Create output grid
+        output = [[' ' for _ in range(new_width)] for _ in range(new_height)]
+        
+        # Map original pixels to rotated positions
+        padded_lines = [line.ljust(max_width) for line in lines]
+        
+        for y in range(height):
+            for x in range(max_width):
+                if padded_lines[y][x] != ' ':
+                    # Translate to center
+                    tx = x - center_x
+                    ty = y - center_y
+                    
+                    # Rotate
+                    rx = tx * cos_a - ty * sin_a
+                    ry = tx * sin_a + ty * cos_a
+                    
+                    # Translate back
+                    nx = int(rx - min_x)
+                    ny = int(ry - min_y)
+                    
+                    if 0 <= ny < new_height and 0 <= nx < new_width:
+                        if output[ny][nx] == ' ':
+                            output[ny][nx] = padded_lines[y][x]
+        
+        return '\n'.join([''.join(row) for row in output])
+    
+    def warp_text(self, text: str, warp_type: str = 'bend', intensity: float = 1.0) -> str:
+        """Apply warping effect to ASCII art.
+        
+        Args:
+            text: Input ASCII art
+            warp_type: Type of warp ('bend', 'twist', 'ripple', 'bulge', 'pinch')
+            intensity: Warp intensity (0.0 to 2.0)
+            
+        Returns:
+            Warped ASCII art
+        """
+        if warp_type == 'bend':
+            return self._warp_bend(text, intensity)
+        elif warp_type == 'twist':
+            return self._warp_twist(text, intensity)
+        elif warp_type == 'ripple':
+            return self._warp_ripple(text, intensity)
+        elif warp_type == 'bulge':
+            return self._warp_bulge(text, intensity)
+        elif warp_type == 'pinch':
+            return self._warp_pinch(text, intensity)
+        else:
+            return text
+    
+    def _warp_bend(self, text: str, intensity: float) -> str:
+        """Bend text horizontally."""
+        import math
+        
+        lines = text.split('\n')
+        if not lines:
+            return text
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        center_y = height / 2
+        
+        result = []
+        for y, line in enumerate(lines):
+            offset = int(intensity * 5 * math.sin((y - center_y) / height * math.pi))
+            padded = line.ljust(max_width + abs(offset))
+            
+            if offset > 0:
+                warped = ' ' * offset + padded
+            else:
+                warped = padded[-offset:] if offset < 0 else padded
+            
+            result.append(warped)
+        
+        return '\n'.join(result)
+    
+    def _warp_twist(self, text: str, intensity: float) -> str:
+        """Twist text rotationally."""
+        import math
+        
+        lines = text.split('\n')
+        if not lines:
+            return text
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        center_x = max_width / 2
+        center_y = height / 2
+        
+        padded_lines = [line.ljust(max_width) for line in lines]
+        output = [[' ' for _ in range(max_width)] for _ in range(height)]
+        
+        for y in range(height):
+            for x in range(max_width):
+                if padded_lines[y][x] != ' ':
+                    # Distance from center
+                    dx = x - center_x
+                    dy = y - center_y
+                    dist = math.sqrt(dx*dx + dy*dy) if (dx != 0 or dy != 0) else 0.1
+                    
+                    # Angle and rotation
+                    angle = math.atan2(dy, dx)
+                    rotation = intensity * (dist / max(max_width, height)) * math.pi
+                    
+                    # New position
+                    nx = int(center_x + dist * math.cos(angle + rotation))
+                    ny = int(center_y + dist * math.sin(angle + rotation))
+                    
+                    if 0 <= ny < height and 0 <= nx < max_width:
+                        if output[ny][nx] == ' ':
+                            output[ny][nx] = padded_lines[y][x]
+        
+        return '\n'.join([''.join(row) for row in output])
+    
+    def _warp_ripple(self, text: str, intensity: float) -> str:
+        """Create ripple effect."""
+        import math
+        
+        lines = text.split('\n')
+        if not lines:
+            return text
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        center_x = max_width / 2
+        center_y = height / 2
+        
+        padded_lines = [line.ljust(max_width) for line in lines]
+        output = [[' ' for _ in range(max_width)] for _ in range(height)]
+        
+        for y in range(height):
+            for x in range(max_width):
+                if padded_lines[y][x] != ' ':
+                    dx = x - center_x
+                    dy = y - center_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    
+                    # Ripple displacement
+                    ripple = intensity * 2 * math.sin(dist / 3)
+                    nx = int(x + ripple * dx / (dist + 0.1))
+                    ny = int(y + ripple * dy / (dist + 0.1))
+                    
+                    if 0 <= ny < height and 0 <= nx < max_width:
+                        if output[ny][nx] == ' ':
+                            output[ny][nx] = padded_lines[y][x]
+        
+        return '\n'.join([''.join(row) for row in output])
+    
+    def _warp_bulge(self, text: str, intensity: float) -> str:
+        """Create bulge effect (magnify center)."""
+        import math
+        
+        lines = text.split('\n')
+        if not lines:
+            return text
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        center_x = max_width / 2
+        center_y = height / 2
+        max_dist = math.sqrt(center_x*center_x + center_y*center_y)
+        
+        padded_lines = [line.ljust(max_width) for line in lines]
+        output = [[' ' for _ in range(max_width)] for _ in range(height)]
+        
+        for y in range(height):
+            for x in range(max_width):
+                if padded_lines[y][x] != ' ':
+                    dx = x - center_x
+                    dy = y - center_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    
+                    # Bulge factor
+                    factor = 1 + intensity * (1 - dist / max_dist)
+                    nx = int(center_x + dx * factor)
+                    ny = int(center_y + dy * factor)
+                    
+                    if 0 <= ny < height and 0 <= nx < max_width:
+                        if output[ny][nx] == ' ':
+                            output[ny][nx] = padded_lines[y][x]
+        
+        return '\n'.join([''.join(row) for row in output])
+    
+    def _warp_pinch(self, text: str, intensity: float) -> str:
+        """Create pinch effect (shrink center)."""
+        import math
+        
+        lines = text.split('\n')
+        if not lines:
+            return text
+        
+        max_width = max(len(line) for line in lines)
+        height = len(lines)
+        center_x = max_width / 2
+        center_y = height / 2
+        max_dist = math.sqrt(center_x*center_x + center_y*center_y)
+        
+        padded_lines = [line.ljust(max_width) for line in lines]
+        output = [[' ' for _ in range(max_width)] for _ in range(height)]
+        
+        for y in range(height):
+            for x in range(max_width):
+                if padded_lines[y][x] != ' ':
+                    dx = x - center_x
+                    dy = y - center_y
+                    dist = math.sqrt(dx*dx + dy*dy)
+                    
+                    # Pinch factor
+                    factor = 1 - intensity * 0.5 * (1 - dist / max_dist)
+                    factor = max(0.1, factor)  # Prevent negative
+                    nx = int(center_x + dx * factor)
+                    ny = int(center_y + dy * factor)
+                    
+                    if 0 <= ny < height and 0 <= nx < max_width:
+                        if output[ny][nx] == ' ':
+                            output[ny][nx] = padded_lines[y][x]
+        
+        return '\n'.join([''.join(row) for row in output])
 

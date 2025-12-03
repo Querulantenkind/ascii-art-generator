@@ -390,4 +390,336 @@ class AdvancedPatternGenerator:
             lines.append(line)
         
         return '\n'.join(lines)
+    
+    def generate_voronoi(self, width: int = 80, height: int = 40, num_sites: int = 10) -> str:
+        """Generate Voronoi diagram pattern.
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            num_sites: Number of Voronoi sites
+            
+        Returns:
+            Voronoi diagram pattern
+        """
+        # Generate random sites
+        sites = [(random.randint(0, width), random.randint(0, height)) 
+                 for _ in range(num_sites)]
+        
+        chars = ' .:-=+*#%@'
+        grid = [[' ' for _ in range(width)] for _ in range(height)]
+        
+        for y in range(height):
+            for x in range(width):
+                # Find closest site
+                min_dist = float('inf')
+                closest_site = 0
+                
+                for i, (sx, sy) in enumerate(sites):
+                    dist = math.sqrt((x - sx)**2 + (y - sy)**2)
+                    if dist < min_dist:
+                        min_dist = dist
+                        closest_site = i
+                
+                # Map distance to character
+                max_dist = math.sqrt(width*width + height*height)
+                char_idx = int((min_dist / max_dist) * (len(chars) - 1))
+                grid[y][x] = chars[char_idx]
+        
+        return '\n'.join([''.join(row) for row in grid])
+    
+    def generate_perlin_noise(self, width: int = 80, height: int = 40,
+                              scale: float = 0.1, octaves: int = 4) -> str:
+        """Generate Perlin noise pattern.
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            scale: Noise scale (smaller = more detail)
+            octaves: Number of octaves for fractal noise
+            
+        Returns:
+            Perlin noise pattern
+        """
+        chars = ' .:-=+*#%@'
+        
+        def fade(t):
+            return t * t * t * (t * (t * 6 - 15) + 10)
+        
+        def lerp(a, b, t):
+            return a + t * (b - a)
+        
+        def grad(hash_val, x, y):
+            h = hash_val & 3
+            u = x if h & 2 == 0 else -x
+            v = y if h & 1 == 0 else -y
+            return u + v
+        
+        def noise(x, y):
+            # Simple hash-based noise
+            X = int(x) & 255
+            Y = int(y) & 255
+            
+            xf = x - int(x)
+            yf = y - int(y)
+            
+            u = fade(xf)
+            v = fade(yf)
+            
+            # Hash coordinates
+            a = (X + Y * 57) % 256
+            b = ((X + 1) + Y * 57) % 256
+            c = (X + (Y + 1) * 57) % 256
+            d = ((X + 1) + (Y + 1) * 57) % 256
+            
+            return lerp(
+                lerp(grad(a, xf, yf), grad(b, xf - 1, yf), u),
+                lerp(grad(c, xf, yf - 1), grad(d, xf - 1, yf - 1), u),
+                v
+            )
+        
+        lines = []
+        for y in range(height):
+            line = ''
+            for x in range(width):
+                value = 0
+                amplitude = 1
+                frequency = scale
+                
+                for _ in range(octaves):
+                    value += noise(x * frequency, y * frequency) * amplitude
+                    amplitude *= 0.5
+                    frequency *= 2
+                
+                # Normalize to 0-1
+                value = (value + 1) / 2
+                char_idx = int(value * (len(chars) - 1))
+                line += chars[char_idx]
+            
+            lines.append(line)
+        
+        return '\n'.join(lines)
+    
+    def generate_reaction_diffusion(self, width: int = 80, height: int = 40,
+                                    iterations: int = 50) -> str:
+        """Generate reaction-diffusion pattern (Turing pattern).
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            iterations: Number of simulation iterations
+            
+        Returns:
+            Reaction-diffusion pattern
+        """
+        # Initialize grids
+        A = [[1.0 for _ in range(width)] for _ in range(height)]
+        B = [[0.0 for _ in range(width)] for _ in range(height)]
+        
+        # Add initial seed
+        center_y, center_x = height // 2, width // 2
+        for y in range(max(0, center_y-5), min(height, center_y+5)):
+            for x in range(max(0, center_x-5), min(width, center_x+5)):
+                B[y][x] = 1.0
+        
+        # Parameters
+        feed = 0.055
+        kill = 0.062
+        dt = 1.0
+        Da = 1.0
+        Db = 0.5
+        
+        chars = ' .:-=+*#%@'
+        
+        for _ in range(iterations):
+            A_new = [row[:] for row in A]
+            B_new = [row[:] for row in B]
+            
+            for y in range(1, height-1):
+                for x in range(1, width-1):
+                    # Laplacian (5-point stencil)
+                    lapl_A = (A[y-1][x] + A[y+1][x] + A[y][x-1] + A[y][x+1] - 4*A[y][x]) * 0.2
+                    lapl_B = (B[y-1][x] + B[y+1][x] + B[y][x-1] + B[y][x+1] - 4*B[y][x]) * 0.2
+                    
+                    # Reaction-diffusion equations
+                    reaction = A[y][x] * B[y][x] * B[y][x]
+                    A_new[y][x] = max(0, min(1, A[y][x] + (Da * lapl_A - reaction + feed * (1 - A[y][x])) * dt))
+                    B_new[y][x] = max(0, min(1, B[y][x] + (Db * lapl_B + reaction - (kill + feed) * B[y][x]) * dt))
+            
+            A, B = A_new, B_new
+        
+        # Convert to ASCII
+        lines = []
+        for row in A:
+            line = ''
+            for val in row:
+                char_idx = int(val * (len(chars) - 1))
+                line += chars[char_idx]
+            lines.append(line)
+        
+        return '\n'.join(lines)
+    
+    def generate_flow_field(self, width: int = 80, height: int = 40,
+                           num_particles: int = 100, steps: int = 50) -> str:
+        """Generate flow field pattern.
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            num_particles: Number of particles
+            steps: Number of steps per particle
+            
+        Returns:
+            Flow field pattern
+        """
+        grid = [[' ' for _ in range(width)] for _ in range(height)]
+        
+        # Create flow field using Perlin-like noise
+        def flow_field(x, y):
+            angle = math.sin(x * 0.1) * math.cos(y * 0.1) * math.pi * 2
+            return math.cos(angle), math.sin(angle)
+        
+        # Trace particles
+        for _ in range(num_particles):
+            x = random.uniform(0, width)
+            y = random.uniform(0, height)
+            
+            for _ in range(steps):
+                ix, iy = int(x), int(y)
+                
+                if 0 <= ix < width and 0 <= iy < height:
+                    if grid[iy][ix] == ' ':
+                        grid[iy][ix] = '.'
+                    elif grid[iy][ix] == '.':
+                        grid[iy][ix] = ':'
+                    elif grid[iy][ix] == ':':
+                        grid[iy][ix] = '='
+                    elif grid[iy][ix] == '=':
+                        grid[iy][ix] = '+'
+                    elif grid[iy][ix] == '+':
+                        grid[iy][ix] = '*'
+                
+                # Move particle
+                dx, dy = flow_field(x, y)
+                x += dx * 0.5
+                y += dy * 0.5
+                
+                # Wrap around
+                x = x % width
+                y = y % height
+        
+        return '\n'.join([''.join(row) for row in grid])
+    
+    def generate_parametric_curve(self, width: int = 80, height: int = 40,
+                                  curve_type: str = 'butterfly') -> str:
+        """Generate parametric curve pattern.
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            curve_type: Type of curve ('butterfly', 'rose', 'cardioid', 'lemniscate')
+            
+        Returns:
+            Parametric curve pattern
+        """
+        grid = [[' ' for _ in range(width)] for _ in range(height)]
+        
+        steps = 2000
+        
+        for i in range(steps):
+            t = i / steps * 2 * math.pi * 4
+            
+            if curve_type == 'butterfly':
+                x = math.sin(t) * (math.exp(math.cos(t)) - 2 * math.cos(4*t) - math.sin(t/12)**5)
+                y = math.cos(t) * (math.exp(math.cos(t)) - 2 * math.cos(4*t) - math.sin(t/12)**5)
+            elif curve_type == 'rose':
+                n = 5
+                k = n
+                x = math.cos(k * t) * math.cos(n * t)
+                y = math.cos(k * t) * math.sin(n * t)
+            elif curve_type == 'cardioid':
+                x = 2 * math.cos(t) * (1 - math.cos(t))
+                y = 2 * math.sin(t) * (1 - math.cos(t))
+            elif curve_type == 'lemniscate':
+                x = math.cos(t) / (1 + math.sin(t)**2)
+                y = math.sin(t) * math.cos(t) / (1 + math.sin(t)**2)
+            else:
+                x = math.cos(t)
+                y = math.sin(t)
+            
+            # Scale and center
+            scale = min(width, height) / 4
+            grid_x = int(x * scale + width / 2)
+            grid_y = int(y * scale + height / 2)
+            
+            if 0 <= grid_x < width and 0 <= grid_y < height:
+                grid[grid_y][grid_x] = '*'
+        
+        return '\n'.join([''.join(row) for row in grid])
+    
+    def generate_chaos_game(self, width: int = 80, height: int = 40,
+                           num_points: int = 10000, shape: str = 'triangle') -> str:
+        """Generate pattern using chaos game algorithm.
+        
+        Args:
+            width: Width of pattern
+            height: Height of pattern
+            num_points: Number of points to generate
+            shape: Shape type ('triangle', 'square', 'pentagon')
+            
+        Returns:
+            Chaos game pattern
+        """
+        grid = [[' ' for _ in range(width)] for _ in range(height)]
+        
+        # Define vertices
+        if shape == 'triangle':
+            vertices = [
+                (width // 2, 10),
+                (width // 4, height - 10),
+                (3 * width // 4, height - 10)
+            ]
+        elif shape == 'square':
+            margin = 10
+            vertices = [
+                (margin, margin),
+                (width - margin, margin),
+                (width - margin, height - margin),
+                (margin, height - margin)
+            ]
+        elif shape == 'pentagon':
+            center_x, center_y = width // 2, height // 2
+            radius = min(width, height) // 3
+            vertices = []
+            for i in range(5):
+                angle = i * 2 * math.pi / 5 - math.pi / 2
+                x = center_x + radius * math.cos(angle)
+                y = center_y + radius * math.sin(angle)
+                vertices.append((int(x), int(y)))
+        else:
+            vertices = [(width // 2, 10), (width // 4, height - 10), (3 * width // 4, height - 10)]
+        
+        # Start from random point
+        x, y = random.randint(0, width), random.randint(0, height)
+        
+        # Ratio for Sierpinski triangle
+        ratio = 0.5
+        
+        for _ in range(num_points):
+            # Pick random vertex
+            vx, vy = random.choice(vertices)
+            
+            # Move halfway towards vertex
+            x = int(x + (vx - x) * ratio)
+            y = int(y + (vy - y) * ratio)
+            
+            if 0 <= x < width and 0 <= y < height:
+                if grid[y][x] == ' ':
+                    grid[y][x] = '.'
+                elif grid[y][x] == '.':
+                    grid[y][x] = '*'
+                elif grid[y][x] == '*':
+                    grid[y][x] = '#'
+        
+        return '\n'.join([''.join(row) for row in grid])
 
